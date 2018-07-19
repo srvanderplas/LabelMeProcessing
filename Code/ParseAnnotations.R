@@ -10,7 +10,7 @@ fix_names <- function(x) {
   if(is.na(x)) return("")
   y <- str_split(x, pattern = "_|(, )", simplify = T)
   z <- str_replace_all(y, c("(.*)s$" = "\\1",
-                            "quardilateral|qudarilateral" = "quad",
+                            "quardilateral|qudarilateral|qiadro.*" = "quad",
                             "^quad(.*)" = "quad",
                             "^square" = "quad",
                             "pengaton|pentagon" = "pentagon",

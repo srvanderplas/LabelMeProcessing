@@ -110,3 +110,53 @@ img_split_resize <- function(im, xsize = 256, ysize = 256, interpolation_type = 
   resizeimgs[enough_to_resize_idx & color_variation_idx]
 }
 
+
+fix_save_imgs <- function(mydf) { # mydf is a chunk of dfunion
+  img_fixed <- data_frame(
+    im = mydf$image,
+    poly = sf::st_as_sfc(mydf$poly_sf),
+    invert = T,
+    ret = "image",
+    angle = mydf$angle
+  ) %>%
+    future_pmap(fix_img, .progress = T)
+  
+  idx <- mydf$toobig != ""
+  rightsize <- map(img_fixed[!idx], ~imager::resize(im = ., size_x = 256, size_y = 256, interpolation_type = 1))
+  future_map2(rightsize, mydf$filename[!idx], ~imager::save.image(.x, .y, quality = 1))
+  # future_map2(img_fixed[idx], mydf[idx,]$filename, ~imager::save.image(.x, .y, quality = 1))
+  
+  if (sum(idx) > 0) {
+    
+    # Handle images that need to be sliced
+    toobigimgs <- map(img_fixed[idx], img_split_resize)
+    toobigdf <- filter(mydf, idx)
+    
+    # Unnest data frame
+    toobigdf <- map2_df(toobigimgs, 1:length(toobigimgs), ~toobigdf[.y,] %>% 
+                          mutate(id2 = .y) %>%
+                          mutate(subidx = list(1:length(.x)))) %>%
+      unnest(subidx) %>% mutate(idx = row_number()) %>%
+      arrange(idx) %>%
+      mutate(filename = str_replace(filename, 
+                                    "(.*?)-(\\d{1,})-(.*)", 
+                                    sprintf("\\1-\\2.%s-\\3", subidx)) %>%
+               str_replace("toslice/", ""))
+    
+    # Unnest images
+    toobigimglist <- toobigimgs %>%
+      unlist(recursive = F) %>% 
+      imager:::as.imlist()
+    
+    
+    future_map2(toobigimglist, toobigdf$filename, ~imager::save.image(.x, .y, quality = 1))
+    
+    mydf2 <- bind_rows(mydf[!idx,], toobigdf)
+    # mydf2$img <- c(rightsize, toobigimglist) %>% imager:::as.imlist()
+    mydf2
+  } else {
+    mydf2 <- mydf
+    # mydf2$img <- rightsize %>% imager:::as.imlist()
+    mydf2
+  }
+}
