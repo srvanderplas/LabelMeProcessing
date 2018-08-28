@@ -17,15 +17,19 @@ source("Code/ParseAnnotations.R")
 # file.copy(files, file.path("Test", "Annotations", basename(files)))
 # file.copy(images, file.path("Test", "Images", basename(images)))
 
-files <- list.files("Annotations/Shoes", "*.xml", full.names = T) 
+files <- list.files("Annotations/Shoes", "*.xml", full.names = T)
 images <- str_replace(files, "Annotations", "Images") %>% str_replace("xml", "jpg")
 
-df <- data_frame(id = 1:length(files), 
-                 file = files,
-                 image = images) %>%
+df <- data_frame(
+  id = 1:length(files),
+  file = files,
+  image = images
+) %>%
   # filter(row_number() < 500) %>%
-  mutate(xml = map(file, annotationObj_extract),
-         objs = map_int(xml, ~length(unlist(.)))) %>%
+  mutate(
+    xml = map(file, annotationObj_extract),
+    objs = map_int(xml, ~length(unlist(.)))
+  ) %>%
   filter(objs > 0) %>%
   mutate(annot = future_map(xml, annotationObj_parse_rename))
 
@@ -36,7 +40,7 @@ df <- data_frame(id = 1:length(files),
 
 # dfunnest <- df %>% select(-xml) %>% unnest()
 
-df <- df %>% 
+df <- df %>%
   mutate(
     fullannot = future_map(annot, ~try(polygon_addfulllabels(.)))
     # intersection = future_map(annot, polygon_intersect),
@@ -52,13 +56,13 @@ dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
   filter(!str_detect(name, "exclude")) %>%
   mutate(geost = future_map(poly_sf, geo_stats)) %>%
   unnest(geost) %>%
-  filter(area > 64^2, area/diagdist > 64*.5) %>%
+  filter(area > 64^2, area / diagdist > 64 * .5) %>%
   ungroup() %>%
   group_by(image, name) %>%
   select(id, image, name, attributes, objID = id1, poly_sf, area, diagdist, angle, angle_adj) %>%
   mutate(toobig = ifelse(area > 384^2, "toslice/", "")) %>%
   group_by(image, name) %>%
-  mutate(filename = sprintf("OneHotImages/%s%s-%d-%s", toobig, name, row_number(), basename(image))) %>%
+  mutate(filename = sprintf("OneHotContext/%s%s-%d-%s", toobig, name, row_number(), basename(image))) %>%
   ungroup()
 
 # dfintersect <- dplyr::select(df_work, id, image, intersection) %>%
@@ -69,7 +73,7 @@ dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
 #   filter(area > 128^2, area/diagdist > 128*.5)
 
 # Create chunks of data frame
-dfsplit <- split(dfunion, floor(dfunion$id/5))
+dfsplit <- split(dfunion, floor(dfunion$id / 5))
 tmpsplit <- map(dfsplit, ~try(fix_save_imgs(.)), .progress = T)
 
 save(tmpsplit, dfunion, df, file = "cropped_photos.Rdata")
