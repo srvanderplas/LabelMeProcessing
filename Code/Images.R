@@ -77,7 +77,11 @@ fix_img <- function(im, poly, invert, ret, angle) {
       imager::imrotate(angle = angle, boundary = 1) %>%
       imager::autocrop()
 
-    # plot(x)
+    # Plot approx every 10th image
+    if (runif(1) < .1) {
+      plot(x)
+    }
+
     x
   })
 }
