@@ -120,7 +120,8 @@ img_split_resize <- function(im, xsize = 256, ysize = 256, interpolation_type = 
 fix_save_imgs <- function(mydf) { # mydf is a chunk of dfunion
   img_fixed <- data_frame(
     im = mydf$image,
-    poly = sf::st_as_sfc(mydf$poly_sf),
+    # poly = sf::st_as_sfc(mydf$poly_sf),
+    poly = mydf$mbr,
     invert = T,
     ret = "image",
     angle = mydf$angle
