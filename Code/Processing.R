@@ -7,7 +7,7 @@ library(magrittr)
 library(tidyverse)
 
 library(furrr)
-plan(multiprocess, workers = 40, gc = T)
+plan(multicore, workers = 40)
 
 source("Code/Images.R")
 source("Code/ParseAnnotations.R")
@@ -52,6 +52,7 @@ which(sapply(df$fullannot, function(x) "try-error" %in% class(x)))
 df_work <- dplyr::select(df, -xml) # make it easier to see what's going on
 
 dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
+  # filter(row_number() < 200) %>%
   unnest() %>%
   filter(!str_detect(name, "exclude")) %>%
   mutate(geost = future_map(poly_sf, geo_stats)) %>%
@@ -74,7 +75,7 @@ dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
 #   filter(area > 128^2, area/diagdist > 128*.5)
 
 # Create chunks of data frame
-dfsplit <- split(dfunion, floor(dfunion$id / 5))
+dfsplit <- split(dfunion, floor(dfunion$id / 10))
 tmpsplit <- map(dfsplit, ~try(fix_save_imgs(.)), .progress = T)
 
 save(tmpsplit, dfunion, df, file = "cropped_photos.Rdata")

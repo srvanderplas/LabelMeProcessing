@@ -11,13 +11,21 @@ fix_names <- function(x) {
   y <- str_split(x, pattern = "_|(, )", simplify = T)
   z <- str_replace_all(y, c(
     "(.*)s$" = "\\1",
-    "quardilateral|qudarilateral|qiadro.*" = "quad",
+    "quardilateral|quarilateral|qudarilateral|qiadro.*|_atera_quad" = "quad",
+    "othre|othere|iother|oter" = "other",
+    "cirlce" = "circle",
     "^quad(.*)" = "quad",
     "^square" = "quad",
     "pengaton|pentagon" = "pentagon",
     "ribb?on" = "ribbon",
-    "^(tet|ext)" = "text",
-    "eclude|exclulde|exclude" = "exclude"
+    "^(tet|ext|texdt|etxt)" = "text",
+    "ttriangle|trianlge|triangel" = "triangle",
+    "triangl$" = "triangle",
+    "cheron" = "chevron",
+    "bowite" = "bowtie",
+    "^_exclude" = "exclude",
+    "exclud$" = "exclude",
+    "eclude|exclulde|exxclude|exclude|exlcude|ecxlude|remove|excluded" = "exclude"
   ))
   z %>%
     unique() %>%
@@ -34,7 +42,7 @@ fix_attrs <- function(x) {
     "texture_ " = "texture_",
     "crep$|creep|crpee" = "crepe",
     "lines" = "line",
-    "dotss|dots|dotted" = "circle",
+    "dotss|dots|dotted" = "dot",
     "segemented" = "segmented",
     "smoothh|smooth|smoot$|smoth|smotoh" = "smooth",
     "texture_" = "texture|",
@@ -60,7 +68,8 @@ merge_name_attr <- function(x, y) {
   }
 
   textures <- yl[grepl("texture", yl)]
-  useful_textures <- textures[grepl("circle|line|crepe", textures)] %>%
+  # Remove circle from useful textures
+  useful_textures <- textures[grepl("line|crepe", textures)] %>%
     str_replace("texture\\|", "")
   if (length(ylattr) > 0) {
     ylattr <- sprintf("%s(%s)", xl, paste(ylattr, collapse = ""))

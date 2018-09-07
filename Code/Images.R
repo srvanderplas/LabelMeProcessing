@@ -69,18 +69,70 @@ mask_polygon <- function(img, poly, invert = F, ret = "image", plotres = T) {
   }
 }
 
+color_px <- function(im, del = 0) {
+  abs(im - c(.5, .5, .5)) < (c(.5, .5, .5) - del)
+}
+
+fix_rotate <- function(impoly, angle, ...) {
+  r1 <- impoly %>%
+    imager::autocrop() %>%
+    imager::imrotate(angle = -angle, ...) 
+  
+  r1bbox <- r1 %>% color_px() %>%
+    imager::clean(px = ., x = 10, boundary = T)
+  
+  r1 <- r1 %>%
+    imager::crop.bbox(r1bbox)
+
+  r2 <- impoly %>%
+    imager::autocrop() %>%
+    imager::imrotate(angle = angle, ...) 
+  
+  r2bbox <- r2 %>% color_px() %>%
+    imager::clean(px = ., x = 10, boundary = T)
+  
+  r2 <- r2 %>%
+    imager::crop.bbox(r2bbox)
+  
+  if (prod(dim(r1)[1:2]) < prod(dim(r2)[1:2])) {
+    return(r1)
+  } else {
+    return(r2)
+  }
+}
+
+median_cc <- function(image, px) {
+  imager::colorise(image, px, median(image[!px], na.rm = T))
+}
+
+fix_border <- function(imx) {
+  bw_im <- (!color_px(imx, del = .01)) #%>%
+    # imager::clean(x = 2, boundary = T)
+  if (mean(bw_im) > 0) {
+    imret <- imx %>%
+      imager::imsplit(axis = 'c') %>%
+      imager::map_il(median_cc, px = bw_im) %>%
+      imager::imappend(axis = 'c')
+  } else {
+    imret <- imx
+  }
+  imret
+}
+
 fix_img <- function(im, poly, invert, ret, angle) {
   if (is.character(im)) im <- imager::load.image(im)
 
   try({
     x <- mask_polygon(img = im, poly = poly, ret = ret, invert = invert, plotres = F) %>%
-      imager::imrotate(angle = angle, boundary = 1) %>%
+      fix_rotate(angle = angle, boundary = 0) %>%  
+      imager::crop.borders(nPix = 1) %>%
+      fix_border() %>%
       imager::autocrop()
 
-    # Plot approx every 10th image
-    if (runif(1) < .1) {
-      plot(x)
-    }
+#     # Plot approx every 10th image
+#     if (runif(1) < .1) {
+#       plot(x)
+#     }
 
     x
   })
