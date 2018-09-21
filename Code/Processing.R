@@ -61,7 +61,7 @@ dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
   ungroup() %>%
   group_by(image, name) %>%
   select(id, image, name, attributes, objID = id1, poly_sf, area, diagdist, angle, angle_adj, mbr) %>%
-  mutate(toobig = ifelse(area > 384^2, "toslice/", ""),
+  mutate(toobig = ifelse(area > 680^2, "toslice/", ""),
          mbr = sf::st_polygon(mbr)) %>% 
   group_by(image, name) %>%
   mutate(filename = sprintf("OneHotContext/%s%s-%d-%s", toobig, name, row_number(), basename(image))) %>%
