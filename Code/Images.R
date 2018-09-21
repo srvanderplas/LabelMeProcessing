@@ -109,10 +109,10 @@ fix_border <- function(imx) {
   bw_im <- (!color_px(imx, del = .01)) #%>%
     # imager::clean(x = 2, boundary = T)
   if (mean(bw_im) > 0) {
-    imret <- imx %>%
-      imager::imsplit(axis = 'c') %>%
-      imager::map_il(median_cc, px = bw_im) %>%
-      imager::imappend(axis = 'c')
+    imret <- imx #%>%
+      # imager::imsplit(axis = 'c') %>%
+      # imager::map_il(median_cc, px = bw_im) %>%
+      # imager::imappend(axis = 'c')
   } else {
     imret <- imx
   }
