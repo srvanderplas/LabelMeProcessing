@@ -69,7 +69,7 @@ merge_name_attr <- function(x, y) {
 
   textures <- yl[grepl("texture", yl)]
   # Remove circle from useful textures
-  useful_textures <- textures[grepl("line|crepe", textures)] %>%
+  useful_textures <- textures[grepl("line", textures)] %>%
     str_replace("texture\\|", "")
   if (length(ylattr) > 0) {
     ylattr <- sprintf("%s(%s)", xl, paste(ylattr, collapse = ""))
