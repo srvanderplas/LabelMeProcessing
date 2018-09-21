@@ -181,12 +181,13 @@ fix_save_imgs <- function(mydf) { # mydf is a chunk of dfunion
     future_pmap(fix_img, .progress = T)
 
   idx <- mydf$toobig != ""
-  rightsize <- map(img_fixed[!idx], ~imager::resize(im = ., size_x = 256, size_y = 256, interpolation_type = 1))
+  rightsize <- map(
+    img_fixed[!idx], 
+    ~imager::resize(im = ., size_x = 256, size_y = 256, interpolation_type = 1))
+  
   future_map2(rightsize, mydf$filename[!idx], ~imager::save.image(.x, .y, quality = 1))
-  # future_map2(img_fixed[idx], mydf[idx,]$filename, ~imager::save.image(.x, .y, quality = 1))
 
   if (sum(idx) > 0) {
-
     # Handle images that need to be sliced
     toobigimgs <- map(img_fixed[idx], img_split_resize)
     toobigdf <- filter(mydf, idx)
@@ -198,12 +199,13 @@ fix_save_imgs <- function(mydf) { # mydf is a chunk of dfunion
       unnest(subidx) %>%
       mutate(idx = row_number()) %>%
       arrange(idx) %>%
-      mutate(filename = str_replace(
-        filename,
-        "(.*?)-(\\d{1,})-(.*)",
-        sprintf("\\1-\\2.%s-\\3", subidx)
-      ) %>%
-        str_replace("toslice/", ""))
+      mutate(
+        filename = str_replace(
+          filename,
+          "(.*?)-(\\d{1,})-(.*)",
+          sprintf("\\1-\\2.%s-\\3", subidx)
+        ) %>%
+          str_replace("toslice/", ""))
 
     # Unnest images
     toobigimglist <- toobigimgs %>%

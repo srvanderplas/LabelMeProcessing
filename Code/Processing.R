@@ -21,8 +21,8 @@ if (!exists("image_dir")) {
   image_dir <- "Images/Shoes"
 }
 
-if (!exists("annotation_dir")) {
-  annotation_dir <- "Annotations/Shoes"
+if (!exists("annot_dir")) {
+  annot_dir <- "Annotations/Shoes"
 }
 
 if (!exists("process_dir")) {
@@ -33,7 +33,7 @@ if (!exists("process_dir")) {
 source(file.path(code_dir, "Images.R"))
 source(file.path(code_dir, "ParseAnnotations.R"))
 
-files <- list.files(annotation_dir, "*.xml", full.names = T)
+files <- list.files(annot_dir, "*.xml", full.names = T)
 images <- file.path(image_dir, str_replace(basename(files), "xml", "jpg"))
 
 df <- data_frame(
@@ -59,16 +59,23 @@ df <- df %>%
     fullannot = future_map(annot, ~try(polygon_addfulllabels(.)))
   )
 
-sapply(df$fullannot, function(x) "try-error" %in% class(x)) %>%
-  which() %>% 
-  paste(collapse = ", ") %>%
-  paste("Errors in annotations", .) %>%
-  message()
+msg <- sapply(df$fullannot, function(x) "try-error" %in% class(x)) %>%
+  which()
+if (length(msg) > 0) {
+  msg %>% 
+    paste(collapse = ", ") %>%
+    paste("Errors in annotations", .) %>%
+    message()
+}
+rm(msg)
 
 df_work <- dplyr::select(df, -xml) # make it easier to see what's going on
 
 if (!dir.exists(file.path(process_dir, "toslice"))) {
   dir.create(file.path(process_dir, "toslice"))
+}
+if (!dir.exists(file.path(process_dir, "images"))) {
+  dir.create(file.path(process_dir, "images"))
 }
 
 dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
@@ -84,7 +91,7 @@ dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
   mutate(toobig = ifelse(area > 680^2, "toslice/", ""),
          mbr = sf::st_polygon(mbr)) %>% 
   group_by(image, name) %>%
-  mutate(filename = sprintf("%s/%s%s-%d-%s", process_dir, toobig, name, 
+  mutate(filename = sprintf("%s/images/%s%s-%d-%s", process_dir, toobig, name, 
                             row_number(), basename(image))) %>%
   ungroup()
 
@@ -93,4 +100,10 @@ dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
 dfsplit <- split(dfunion, floor(dfunion$id / 10))
 tmpsplit <- map(dfsplit, ~try(fix_save_imgs(.)), .progress = T)
 
-save(tmpsplit, dfunion, df, file = "cropped_photos.Rdata")
+save(tmpsplit, dfunion, df, 
+     file = file.path(process_dir, "cropped_photos.Rdata"))
+
+
+# Reset future processes
+plan(sequential)
+gc()
