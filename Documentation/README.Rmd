@@ -36,14 +36,18 @@ Note that previously labeled objects may appear on the image. Please do not labe
 Where possible, aim for regions which are roughly rectangular in shape. 
 
 <img width="20%" src="RectangleTool.png">
+
 Rectangle mode:
+
 1. Select the rectangle tool from the toolbar on the left side of the screen
 2. Click on a region outside of the feature of interest
 3. Click on a region on the other side of the feature of interest, so that the rectangle that appears completely covers the feature of interest.
 4. A window will appear asking for the object's name and attributes. Enter the information and click "Done".
 
 <img width="20%" src="PolygonTool.png">
+
 Polygon mode:
+
 1. Start by pressing the left mouse button at some point along the boundary of the object.
 2. Continue clicking along the boundary of the object
 to create a polygon. The boundary edges should be reasonably precise, but do not have to be pixel-perfect.
@@ -166,15 +170,20 @@ Sometimes, bowties take a slightly different form. A butterfly shape can also be
 Three-sided objects which have straight or mostly straight lines and are convex. It is possible that something may appear triangular but would leave a not-triangular shape - when in doubt, go with the feature that would be left in the shoe print.
 
 
-![Triangle](TriangleExample.png)
 In this image, the triangle shape labeled should be larger, to catch the borders of the shape. 
 
-![Triangle](Triangle.png)
+![Triangle](TriangleExample.png)
+
+
 In this image, the region around the triangle should be included - the labeled region should be quadrilateral.
+
+![Triangle](Triangle.png)
+
+
+Here, the triangles co-occur with hexagons. THe figure should be labeled "triangle,hexagon"
 
 ![Triangles](TriangleHexagon.png)
 
-Here, the triangles co-occur with hexagons. THe figure should be labeled "triangle,hexagon"
 
 
 ### Quadrilateral
@@ -220,20 +229,18 @@ A polygon is any straight(ish) sided object that has more than 4 edges (for the 
 
 Other may describe a shape not covered in the above categories, or a general region of the shoe (maybe due to subtraction) that has only a texture and no other obvious features
 
-![Other Example](TextureDotsExample2.png)
-
-In this figure, the dots are texture, and are not easily individually recognizable. Thus, the "region" of the entire front of the shoe would be the large feature, "other", and the dots are a texture within that region.
+In this figure (below), the flowers are the main design element, with chevrons as background.
 
 ![Other Example](OtherExample.png)
-
-In this figure (below), the flowers are the main design element, and the texture element is lines. The lines are not visually dominant when zoomed out to see the design elements.
+ 
+This figure could be labeled as other, but also could be labeled as "line,circle,other" because the flowers can be broken down into circular regions and lines. 
 
 ![Other Example](OtherExampleLines.png) 
 
 
-As of about August, 2018, textures and modifiers are less critical to label. The instructions are provided for clarity sake, but texture elements that are recognizable as features described above should be labeled as the feature, not as a texture. 
-
 ## Attributes
+
+As of about August, 2018, textures and modifiers are less critical to label. The instructions are provided for clarity sake, but texture elements that are recognizable as features described above should be labeled as the feature, not as a texture. 
 
 ### Texture
 
