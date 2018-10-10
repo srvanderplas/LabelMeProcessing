@@ -1,7 +1,7 @@
 ---
 title: "LabelMe Instructions"
 author: "Susan VanderPlas"
-date: "June 15, 2018"
+date: "October 10, 2018"
 output: 
   html_document:
     theme: cerulean
@@ -13,7 +13,7 @@ output:
 
 ## LabelMe
 
-URL: https://bigfoot.csafe.iastate.edu/LabelMe/tool.html?collection=LabelMe&mode=i
+URL: https://bigfoot.csafe.iastate.edu/LabelMe/tool.html?collection=LabelMe&mode=f&actions=a
 
 LabelMe is a web-based program designed for computer vision projects. In order to train a computer to recognize image features, it is necessary to first have a labeled database of those features. 
 
@@ -23,11 +23,27 @@ When you enter the tool, an image from the database will be randomly
 selected and shown. You can help by annotating as many objects as you can.
 Note that previously labeled objects may appear on the image. Please do not label previously labeled objects. Once you have completed the image, you can view a new image by pressing the "show next image" button.
 
+### URL options:
 
-### Polygons
+1. Append "&actions=a" in order to modify polygons from other users
+2. Append "&mode=f" to work through images sequentially; "&mode=i" works through images in random order
 
-The following steps describe how to label an object:
 
+### User Interface
+
+#### Labeling Objects
+
+Where possible, aim for regions which are roughly rectangular in shape. 
+
+<img width="20%" src="RectangleTool.png">
+Rectangle mode:
+1. Select the rectangle tool from the toolbar on the left side of the screen
+2. Click on a region outside of the feature of interest
+3. Click on a region on the other side of the feature of interest, so that the rectangle that appears completely covers the feature of interest.
+4. A window will appear asking for the object's name and attributes. Enter the information and click "Done".
+
+<img width="20%" src="PolygonTool.png">
+Polygon mode:
 1. Start by pressing the left mouse button at some point along the boundary of the object.
 2. Continue clicking along the boundary of the object
 to create a polygon. The boundary edges should be reasonably precise, but do not have to be pixel-perfect.
@@ -40,11 +56,20 @@ name and attributes.  Enter the object's name and provide any additional informa
     - Additional information provided in the format key:value will be saved as key_value; this is not an issue. 
     - Capitalization is also not a problem. You may specify plural or singular nouns - e.g. circles and circle will be recorded as the same value. 
     - Spelling does matter, so please check!
+    
+Mask mode: 
+Please do not use mask mode. The resulting annotations are not easily processed.
 
+#### Quality Control:
 
+1. Select the annotated region using the mouse; click to bring up an edit box
+2. Ensure that the labels are accurate, spelling is correct, all features in the annotated region are labeled. Multiple labels should be separated by a comma and space.
+3. Ensure that the boundary of the annotation completely encompasses the feature labeled - if not, use the "Adjust polygon" button
+4. Click Done
 
+## Labeling the Image
 
-## Regions to Exclude
+### Regions to Exclude
 
 Pictures of the bottom of a shoe are not necessarily equivalent to shoeprints. Any region of the shoe which would not be represented in a shoe print should be excluded (if it is obvious that this is the case). 
 
@@ -56,45 +81,24 @@ Pictures of the bottom of a shoe are not necessarily equivalent to shoeprints. A
 
 ![Exclude Area Example](Exclude4.png)
 
-
+Regions which are labeled "exclude" will be removed from the image before any other labels are processed. Thus, if a labeled region is completely within another region labeled "exclude", the labeled image will be completely white. This should be avoided.
 
 
 ## Features of Interest
-Features may exist as discrete elements or be nested within other features. Where possible, nesting should be limited to one layer.
+Features may exist as discrete elements; multiple elements may exist within the same annotated region. When this occurs, only one region should be labeled, but labels should be represented as a comma-separated list.
 
-![Nesting Example](Hierarchy.png)
+Where possible, overlapping labeled regions should be avoided. The picture below shows several regions labeled chevron which appear to overlap slightly. Where possible, overlap should be minimized, and in no case should more than 25% of a region be duplicated in another region. 
 
-The following is a list of commonly occurring features. Features not in the list should be placed in the "Other" category. If there is a commonly occurring feature that isn't in the list, you may email me (srvander@iastate.edu) to ask about adding it to the list.
-
-When classifying features, the goal is to get the dominant feature(s) recorded, even if this is slightly inaccurate. For instance, the following shape isn't completely a chevron, but is "close enough" that a computer-vision algorithm should recognize it as very similar to a chevron.
-
-![Chevron-Like](CrepeChevron.png)
-
-When more than one of the same feature exist in a region, it is fine to highlight the whole region and label it as containing that feature, so long as the feature you're labeling is the dominant feature in the region.
-
-![Chevron Group](ChevronGroup.png)
-
-
+![Overlapping Regions](OverlappingRegions.png)
 
 
 ### Lines
 
-Lines are usually found in groups - a group of lines may be coded as a single object if not interrupted by another geometric object or feature.
+Lines are usually found in groups - a group of lines may be coded as a single object if not interrupted by another geometric object or feature. Lines may also divide the shoe up into regions. 
 
 ![Lines Example Image](LinesExample.png)    
+
 Note that this set of lines is not a rounded chevron pattern because there are very straight components at the toe of the shoe; when viewed as a set, the lines are not producing a chevron-like pattern.
-
-
-
-### Ribbons
-
-Ribbons are curved and typically appear alone (e.g. not in parallel). They may divide the shoe up into segments. For instance, in the image below, there are two ribbons that happen to be in parallel but divide the shoe up into left, center, and right portions, each with different patterns.
-
-![Ribbon Example Image](RibbonExample.png)
-
-Sometimes, objects are occluded. When this occurs, either label both parts of the object excluding the occlusion, or label the whole and mark the image as occluded.
-
-![Ribbon Occlusion](RibbonOccluded.png)
 
 
 ### Circles
@@ -102,6 +106,12 @@ Sometimes, objects are occluded. When this occurs, either label both parts of th
 Circles encompass ellipse and oval objects as well; these objects would be given an attribute such as "elongated". It is not necessary to mark each individual circle if they are the only geometric object and are tiling the region; it is sufficient to mark the region. 
 
 ![Circle Example Image](CircleExample.png)
+
+Circles may surround text in some cases; in these situations label the region as "circle,text".
+
+![Circle in context](CircleContext.png)
+
+Circles may also appear even when there is no explicit circle. This region should be labeled as "circle, triangle,star" as the center region is star-like, there are triangles surrounding that central region, and the overall effect is to produce a circle. 
 
 ### Chevron
 
@@ -118,13 +128,13 @@ Stars are objects which would be polygons if they were convex, but are instead c
 
 ![Stars](StarPentagon.png)
 
-This image has both stars and pentagons. Each region of the shoe should be labeled with both attributes (e.g. define two regions, one with stars, one with pentagons). 
+This image has both stars and pentagons. Each region of the shoe should be labeled with both attributes ("star,pentagon").
 
 Another example of stars, this time of a triangular sort
 
 ![Stars](StarHatching.png)
 
-Stars may be made up of other objects. If this is the case, label the components as well as the whole.
+Stars may be made up of other objects. If this is the case, label the components as well as the whole ("star,chevron")
 
 ![Stars](StarChevron.png)
 
@@ -132,21 +142,24 @@ Stars may be made up of other objects. If this is the case, label the components
 
 ### Text
 
-Text may be a part of another element or may exist on its own. If it exists on its own, it should be the object name; if it is part of another element it may be better classified as texture.
+Text may be a part of another element or may exist on its own. If it is part of another element, use both labels. 
 
 ![Text Example Image](TextExample.png)
 
 ![Text Example Image](TextExample2.png)
 
+This image is from the previous documentation version - if labeled today, the large region would be broken up into two or three smaller, rectangular regions and each region would be labeled "text,line".
 
 
 ### Bowtie
 
-Bowties are quadrilaterals with two concave faces opposite two convex faces.
+Bowties have two concave faces opposite two convex faces. This image should be labeled "bowtie,text".
 
-![Text Texture Image](TextureTextExample.png)
+![Classical Bowtie Shape](BowtieTextRect.png)
 
-In this image, the text is servivng as a texture, that is, it is used to fill in an element.
+Sometimes, bowties take a slightly different form. A butterfly shape can also be seen as a bowtie:
+
+![Butterfly Bowtie](BowtieButterfly.png)
 
 ### Triangle
 
@@ -154,31 +167,33 @@ Three-sided objects which have straight or mostly straight lines and are convex.
 
 
 ![Triangle](TriangleExample.png)
+In this image, the triangle shape labeled should be larger, to catch the borders of the shape. 
 
 ![Triangle](Triangle.png)
+In this image, the region around the triangle should be included - the labeled region should be quadrilateral.
 
 ![Triangles](TriangleHexagon.png)
 
-Here, the triangles co-occur with hexagons.
+Here, the triangles co-occur with hexagons. THe figure should be labeled "triangle,hexagon"
 
 
 ### Quadrilateral
 
-Any four-sided figure that is reasonably large. 
+Any four-sided figure that is reasonably large. In this image, it would be better if the labeled region were more rectangular. 
 
 ![quadrilateral](QuadrilateralExample.png)
 
-"Reasonably large" is definitely subject to interpretation
+"Reasonably large" is definitely subject to interpretation. In this image, it would be better if the labeled region was split into two and each region were roughly rectangular. 
 
 ![quadrilateral rounded](RoundedQuadrilateral.png)
 
 ### Pentagon
 
-Pentagons are 5-sided objects. If there is a question as to whether something is more pentagon-like or is a truncated hexagon or triangle, use your best judgment or gut instinct. It is not always as clear as you'd expect. 
+Pentagons are 5-sided objects.
 
 ![Stars](StarPentagon.png)
 
-This image has both stars and pentagons. Each region of the shoe should be labeled with both attributes (e.g. define two regions, one with stars, one with pentagons). 
+This image has both stars and pentagons. Each region of the shoe should be labeled with both attributes ("star, pentagon")
 
 
 ### Hexagon
@@ -187,16 +202,19 @@ Hexagons are any six-sided figure. In many cases, they co-occur with triangles.
 
 ![Hexagon](Hexagon.png)
 
-Here, the entire region containing hexagons is marked. The hexagons aren't quite small enough to be considered a texture (and in any case, the texture would be "hatching" or "segmented" depending on the configuration), so the entire region containing the hexagons is marked. Additional sub-regions may be marked as containing, for instance, quadrilaterals. 
 
 ![Hexagon](Hexagon2.png)
 
-These are classified as hexagons instead of quadrilaterals because the hexagon portion of the shape is more dominant.
+These are best classified as "hexagon,quad" and possibly "hexagon,quad,line" both because of the line bisecting each hexagon and the lines intruding on the hexagon tiling.
 
 
 ![Hexagon](HexagonTriangle.png)
 
-Here, the hexagons co-occur with triangles.
+Here, the hexagons co-occur with triangles. The image should be labeled "hexagon,triangle"
+
+### Polygon
+
+A polygon is any straight(ish) sided object that has more than 4 edges (for the purposes of this study, quadrilaterals and triangles aren't polygons). It is preferable to label hexagons and pentagons instead of polygons, but in ambiguous cases or cases where there are more than 6 sides, label the thing as a polygon. 
 
 ### Other
 
@@ -213,21 +231,24 @@ In this figure (below), the flowers are the main design element, and the texture
 ![Other Example](OtherExampleLines.png) 
 
 
+As of about August, 2018, textures and modifiers are less critical to label. The instructions are provided for clarity sake, but texture elements that are recognizable as features described above should be labeled as the feature, not as a texture. 
 
-## Texture
+## Attributes
+
+### Texture
 
 Texture attributes are small details that occur **within some other shape**. Specified as texture:value in the attribute field on labelme (the program will convert this to texture_value; this is not a problem). Texture elements would only be useful to the neural nets at a much closer zoom level and are not as visible when zoomed out. You may even have to zoom in to determine which texture category something is in: below, hatching texture is shown, though it looked like it might be dots when zoomed out.
 
 ![Hatching Zoom](HatchingZoom.png)
 
 
-### Smooth
+#### Smooth
 
 Something with no visible texture attributes. 
 
 ![quadrilateral](QuadrilateralExample.png)
 
-### Dots
+#### Dots
 
 Dots may be circles but should be fairly small - small enough that marking them all would be ridiculous. The dots shown below are on the larger side.
 
@@ -237,13 +258,13 @@ These dots are much more clearly texture elements.
 
 ![Dots Texture 2](TextureDotsExample2.png)
 
-### Hatching
+#### Hatching
 
 ![Hatching Texture](TextureHatchingExample.png)
 
 ![Hatching](TextureHatching.png)
 
-### Text
+#### Text
 
 Text is a texture when it is used to fill in an image:
 
@@ -253,7 +274,7 @@ Text is a texture when it is used to fill in an image:
 Here, the lines are made up of text.
 ![Text Texture](TextureText.png)
 
-### Lines
+#### Lines
 
 Lines should be fine and must be part of another element to be texture. For instance, in the following picture the main elements are chevrons and the lines are primarily filler.
 
@@ -263,7 +284,7 @@ In this image, the main element is the text and the lines are also filler.
 
 ![Lines](TextExample2.png)
 
-### Crepe
+#### Crepe
 
 Crepe is a texture which is irregular and "random". 
 
@@ -271,18 +292,18 @@ Crepe is a texture which is irregular and "random".
 
 ![Crepe](Crepe2.png)
 
-### Other
+#### Other
 
 Other textures which are not smooth but do not fall into another bin can be classified as "other". 
 
 ![Segmented](Segmented.png)
 
 
-## Modifiers
+### Modifiers
 
 Modifiers alter the description of a shape. They are included in the attribute field, but do not have an attribute label in front of them (e.g. they appear alone)
 
-### Rounded
+#### Rounded
 
 Rounded objects (usually applied to polygons or chevrons) may have rounded corners or have curved lines instead of straight lines. For example, here is a rounded triangle:
 
@@ -290,7 +311,7 @@ Rounded objects (usually applied to polygons or chevrons) may have rounded corne
 
 ![rounded](RoundedExample.png)
 
-### Elongated
+#### Elongated
 
 Elongated is an attribute that differentiates circles from ovals and ellipses. 
 
