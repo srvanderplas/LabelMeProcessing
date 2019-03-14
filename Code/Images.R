@@ -164,8 +164,11 @@ img_split_resize <- function(im, xsize = 256, ysize = 256, interpolation_type = 
 
   enough_to_resize_idx <- sapply(splitimgs, function(x) prod(dim(x)[1:2] >= c(xsize / 10, ysize / 10)) == 1)
   color_variation_idx <- sapply(resizeimgs, function(x) length(unique(x)) >= 50)
+  nonwhite_idx <- sapply(resizeimgs, function(x) {
+    sum(imager::grayscale(x) != 1) > (.75*256*256)
+  })
 
-  resizeimgs[enough_to_resize_idx & color_variation_idx]
+  resizeimgs[enough_to_resize_idx & color_variation_idx & nonwhite_idx]
 }
 
 
@@ -186,36 +189,39 @@ fix_save_imgs <- function(mydf) { # mydf is a chunk of dfunion
     ~imager::resize(im = ., size_x = 256, size_y = 256, interpolation_type = 1))
   
   future_map2(rightsize, mydf$filename[!idx], ~imager::save.image(.x, .y, quality = 1))
-
+  
   if (sum(idx) > 0) {
-    # Handle images that need to be sliced
-    toobigimgs <- map(img_fixed[idx], img_split_resize)
-    toobigdf <- filter(mydf, idx)
+    future_map2(img_fixed[idx], img_fixed, ~imager::save.image(.x, .y, quality = 1))
+    # 
+    # # Handle images that need to be sliced
+    # toobigimgs <- map(img_fixed[idx], img_split_resize)
+    # toobigdf <- filter(mydf, idx)
+    # 
+    # # Unnest data frame
+    # toobigdf <- map2_df(toobigimgs, 1:length(toobigimgs), ~toobigdf[.y, ] %>%
+    #   mutate(id2 = .y) %>%
+    #   mutate(subidx = list(1:length(.x)))) %>%
+    #   unnest(subidx) %>%
+    #   mutate(idx = row_number()) %>%
+    #   arrange(idx) %>%
+    #   mutate(
+    #     filename = str_replace(
+    #       filename,
+    #       "(.*?)-(\\d{1,})-(.*)",
+    #       sprintf("\\1-\\2.%s-\\3", subidx)
+    #     ) %>%
+    #       str_replace("toslice/", ""))
+    # 
+    # # Unnest images
+    # toobigimglist <- toobigimgs %>%
+    #   unlist(recursive = F) %>%
+    #   imager:::as.imlist()
+    # 
+    # 
+    # future_map2(toobigimglist, toobigdf$filename, ~imager::save.image(.x, .y, quality = 1))
 
-    # Unnest data frame
-    toobigdf <- map2_df(toobigimgs, 1:length(toobigimgs), ~toobigdf[.y, ] %>%
-      mutate(id2 = .y) %>%
-      mutate(subidx = list(1:length(.x)))) %>%
-      unnest(subidx) %>%
-      mutate(idx = row_number()) %>%
-      arrange(idx) %>%
-      mutate(
-        filename = str_replace(
-          filename,
-          "(.*?)-(\\d{1,})-(.*)",
-          sprintf("\\1-\\2.%s-\\3", subidx)
-        ) %>%
-          str_replace("toslice/", ""))
-
-    # Unnest images
-    toobigimglist <- toobigimgs %>%
-      unlist(recursive = F) %>%
-      imager:::as.imlist()
-
-
-    future_map2(toobigimglist, toobigdf$filename, ~imager::save.image(.x, .y, quality = 1))
-
-    mydf2 <- bind_rows(mydf[!idx, ], toobigdf)
+    # mydf2 <- bind_rows(mydf[!idx, ], toobigdf)
+    mydf2 <- mydf
     # mydf2$img <- c(rightsize, toobigimglist) %>% imager:::as.imlist()
     mydf2
   } else {
