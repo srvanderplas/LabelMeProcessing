@@ -8,21 +8,25 @@ library(purrr)
 
 fix_names <- function(x) {
   if (is.na(x)) return("")
-  y <- str_split(x, pattern = "_|(, )", simplify = T)
+  y <- str_split(x, pattern = "_|(, )", simplify = T) %>%
+    str_trim()
   z <- str_replace_all(y, c(
     "(.*)s$" = "\\1",
-    "quardilateral|quarilateral|qudarilateral|qiadro.*|_atera_quad" = "quad",
+    "quardilateral|quarilateral|qudarilateral|qiadro.*|_atera_quad|quadrilateral" = "quad",
     "othre|othere|iother|oter" = "other",
     "cirlce" = "circle",
     "^quad(.*)" = "quad",
     "^square" = "quad",
-    "pengaton|pentagon" = "pentagon",
+    "pengaton|pentagon" = "polygon",
+    "lines" = "line",
+    "hexagon" = "polygon",
     "ribb?on" = "ribbon",
     "^(tet|ext|texdt|etxt)" = "text",
     "ttriangle|trianlge|triangel" = "triangle",
     "triangl$" = "triangle",
+    "star|stars|start" = "star",
     "cheron" = "chevron",
-    "bowite" = "bowtie",
+    "bowite|bootie|blowtie" = "bowtie",
     "^_exclude" = "exclude",
     "exclud$" = "exclude",
     "eclude|exclulde|exxclude|exclude|exlcude|ecxlude|remove|excluded" = "exclude"
@@ -191,7 +195,8 @@ annotationObj_parse_rename <- function(x) {
       attributes2 = map_chr(attributes, fix_attrs)
     ) %>%
     mutate(name = map2_chr(name2, attributes2, merge_name_attr)) %>%
-    mutate(name = str_replace(name, "other_(.*)", "\\1"))
+    mutate(name = str_replace(name, "other_(.*)", "\\1")) %>%
+    filter(deleted == 0)
 }
 
 polygon_intersect <- function(annot_df) {
@@ -352,11 +357,15 @@ polygon_addfulllabels <- function(annot_df) {
       # Keep only tags which overlap by more than 40%
       filter(pct1 > .4 | pct2 > .4)
   }
+  
+  sort_names <- function(x) {
+    sample(x, length(x), replace = F)
+  }
 
   if (nrow(tmpintersectdata) > 0) {
     tmpintersectdata <- tmpintersectdata %>%
       dplyr::group_by(name.1, ID.1) %>%
-      dplyr::summarize(fullname = sort(unique(c(name.1, name.2))) %>%
+      dplyr::summarize(fullname = sort_names(fix_names(unique(c(name.1, name.2)))) %>%
         paste(collapse = "_")) %>%
       dplyr::rename(name = name.1, id = ID.1)
   } else {
