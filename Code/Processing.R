@@ -62,14 +62,16 @@ df <- df %>%
 msg <- sapply(df$fullannot, function(x) "try-error" %in% class(x)) %>%
   which()
 if (length(msg) > 0) {
-  msg %>% 
+  msg %>%
     paste(collapse = ", ") %>%
     paste("Errors in annotations", .) %>%
     message()
 }
 rm(msg)
 
-df_work <- dplyr::select(df, -xml) # make it easier to see what's going on
+df_work <- dplyr::select(df, -xml) %>% # make it easier to see what's going on
+  mutate(annot_ok = sapply(fullannot, is.data.frame)) %>%
+  filter(annot_ok)
 
 if (!dir.exists(file.path(process_dir, "toslice"))) {
   dir.create(file.path(process_dir, "toslice"))
@@ -86,12 +88,12 @@ dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
   filter(area > 64^2, area / diagdist > 64 * .5) %>%
   ungroup() %>%
   group_by(image, name) %>%
-  select(id, image, name, attributes, objID = id1, poly_sf, area, diagdist, 
+  select(id, image, name, attributes, objID = id1, poly_sf, area, diagdist,
          angle, angle_adj, mbr) %>%
   mutate(toobig = ifelse(area > 680^2, "toslice/", ""),
-         mbr = sf::st_polygon(mbr)) %>% 
+         mbr = sf::st_polygon(mbr)) %>%
   group_by(image, name) %>%
-  mutate(filename = sprintf("%s/images/%s%s-%d-%s", process_dir, toobig, name, 
+  mutate(filename = sprintf("%s/images/%s%s-%d-%s", process_dir, toobig, name,
                             row_number(), basename(image))) %>%
   ungroup()
 
@@ -100,7 +102,7 @@ dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
 dfsplit <- split(dfunion, floor(dfunion$id / 10))
 tmpsplit <- map(dfsplit, ~try(fix_save_imgs(.)), .progress = T)
 
-save(tmpsplit, dfunion, df, 
+save(tmpsplit, dfunion, df,
      file = file.path(process_dir, "cropped_photos.Rdata"))
 
 
