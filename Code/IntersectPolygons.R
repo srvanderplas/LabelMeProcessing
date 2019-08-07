@@ -1,6 +1,5 @@
 library(magrittr)
 library(tidyverse)
-library(htmltidy)
 library(purrr)
 library(xml2)
 library(XML)
