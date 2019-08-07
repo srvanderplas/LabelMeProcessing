@@ -12,14 +12,16 @@ fix_names <- function(x) {
     str_trim()
   z <- str_replace_all(y, c(
     "(.*)s$" = "\\1",
-    "quardilateral|quarilateral|qudarilateral|qiadro.*|_atera_quad|quadrilateral" = "quad",
+    "quardilateral|quarilateral|qudarilateral|qiadro.*|_atera_quad|quadrilateral|qaud|qud|rectangle" = "quad",
+    "^qua$" = "quad",
     "othre|othere|iother|oter" = "other",
-    "cirlce" = "circle",
+    "cirlce|cricle|cirle" = "circle",
     "^quad(.*)" = "quad",
     "^square" = "quad",
     "pengaton|pentagon" = "polygon",
-    "lines" = "line",
-    "hexagon" = "polygon",
+    "octagon" = "polygon",
+    "lines|(curved line)" = "line",
+    "hexagon|heagon" = "polygon",
     "ribb?on" = "ribbon",
     "^(tet|ext|texdt|etxt)" = "text",
     "ttriangle|trianlge|triangel" = "triangle",
@@ -29,6 +31,7 @@ fix_names <- function(x) {
     "bowite|bootie|blowtie" = "bowtie",
     "^_exclude" = "exclude",
     "exclud$" = "exclude",
+    "circlemtraignle" = "circle,triangle",
     "eclude|exclulde|exxclude|exclude|exlcude|ecxlude|remove|excluded" = "exclude"
   ))
   z %>%
@@ -122,7 +125,7 @@ annotationObj_parseOne <- function(x) {
   values <- xpathSApply(x, ".//text()", xmlValue)
   names(values) <- names
 
-  df <- as_data_frame(t(values[idx]))
+  df <- as_tibble(t(values[idx]))
 
   if ("polygon" %in% allnames) {
     # Get points
@@ -148,17 +151,17 @@ annotationObj_parseOne <- function(x) {
   if ("segm" %in% allnames) {
     df <- df %>%
       bind_cols(
-        data_frame(mask = xpathSApply(x, "segm/mask", xmlValue)),
+        tibble(mask = xpathSApply(x, "segm/mask", xmlValue)),
         xpathSApply(x, "segm/box/*", xmlValue) %>%
           as.numeric() %>%
           t() %>%
-          as_data_frame() %>%
+          as_tibble() %>%
           set_names(xpathSApply(x, "segm/box/*", xmlName)) %>%
           nest(.key = "bbox"),
         xpathSApply(x, "segm/scribbles/*[self::xmin or self::xmax or self::ymin or self::ymax]", xmlValue) %>%
           as.numeric() %>%
           t() %>%
-          as_data_frame() %>%
+          as_tibble() %>%
           set_names(xpathSApply(x, "segm/scribbles/*[self::xmin or self::xmax or self::ymin or self::ymax]", xmlName)) %>%
           mutate(scribble_mask = xpathSApply(x, "segm/scribbles/scribble_name", xmlValue)) %>%
           nest(.key = "scribble")
@@ -173,7 +176,7 @@ annotationObj_parseOne <- function(x) {
 
 annotationObj_parseAll <- function(x) {
   if (length(x) == 0) {
-    return(data_frame())
+    return(tibble())
   }
   map_df(unlist(x), annotationObj_parseOne) %>%
     mutate(poly_sf = st_as_sfc(poly_sf))
@@ -182,7 +185,7 @@ annotationObj_parseAll <- function(x) {
 annotationObj_parse_rename <- function(x) {
   y <- annotationObj_parseAll(x)
   if (nrow(y) == 0) {
-    return(data_frame())
+    return(tibble())
   }
   if (!"attributes" %in% names(y)) {
     y$attributes <- NA
@@ -221,7 +224,7 @@ polygon_intersect <- function(annot_df) {
     }
   }
 
-  tmp <- dplyr::data_frame(name, poly)
+  tmp <- dplyr::tibble(name, poly)
 
   # Create Spatial Polygons
   tmpsp <- methods::as(tmp$poly, "Spatial")
@@ -295,7 +298,7 @@ angle_adjust <- function(angle) {
 
 geo_stats <- function(geo) {
   mbrmat <- geo %>% MBR()
-  data_frame(
+  tibble(
     # area = raster::area(as(geo, "Spatial")),
     area = st_area(geo),
     mbr = st_polygon(list(mbrmat)),
@@ -327,7 +330,7 @@ polygon_addfulllabels <- function(annot_df) {
     }
   }
 
-  tmp <- dplyr::data_frame(name, poly) %>%
+  tmp <- tibble::tibble(name, poly) %>%
     filter(sf::st_area(poly) > 0)
 
   # Create Spatial Polygons
@@ -348,7 +351,7 @@ polygon_addfulllabels <- function(annot_df) {
 
   if (length(tmpintersections) > 0) {
     tmpintersectdata <- tmpintersectdata %>%
-      as_data_frame() %>%
+      as_() %>%
       mutate_at(vars(starts_with("ID")), ~str_replace(., "ID", "")) %>%
       mutate(
         area_int = raster::area(tmpintersections),
@@ -357,7 +360,7 @@ polygon_addfulllabels <- function(annot_df) {
       # Keep only tags which overlap by more than 40%
       filter(pct1 > .4 | pct2 > .4)
   }
-  
+
   sort_names <- function(x) {
     sample(x, length(x), replace = F)
   }
@@ -369,7 +372,7 @@ polygon_addfulllabels <- function(annot_df) {
         paste(collapse = "_")) %>%
       dplyr::rename(name = name.1, id = ID.1)
   } else {
-    tmpintersectdata <- data_frame(name = tmpintersectdata$name.1, id = tmpintersectdata$ID.1, fullname = tmpintersectdata$name.1)
+    tmpintersectdata <- tibble(name = tmpintersectdata$name.1, id = tmpintersectdata$ID.1, fullname = tmpintersectdata$name.1)
   }
 
   left_join(annot_df, tmpintersectdata, by = c("name", "id")) %>%
@@ -380,6 +383,6 @@ polygon_addfulllabels <- function(annot_df) {
 
 # files <- list.files("Annotations/Shoes", "*.xml", full.names = T) %>% sample(size = 50)
 #
-# df <- data_frame(file = files) %>%
+# df <- tibble(file = files) %>%
 #   mutate(xml = map(file, annotationObj_extract),
 #          annotation = map(xml, annotationObj_parseAll))
