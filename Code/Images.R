@@ -76,24 +76,26 @@ color_px <- function(im, del = 0) {
 fix_rotate <- function(impoly, angle, ...) {
   r1 <- impoly %>%
     imager::autocrop() %>%
-    imager::imrotate(angle = -angle, ...) 
-  
-  r1bbox <- r1 %>% color_px() %>%
+    imager::imrotate(angle = -angle, ...)
+
+  r1bbox <- r1 %>%
+    color_px() %>%
     imager::clean(px = ., x = 10, boundary = T)
-  
+
   r1 <- r1 %>%
     imager::crop.bbox(r1bbox)
 
   r2 <- impoly %>%
     imager::autocrop() %>%
-    imager::imrotate(angle = angle, ...) 
-  
-  r2bbox <- r2 %>% color_px() %>%
+    imager::imrotate(angle = angle, ...)
+
+  r2bbox <- r2 %>%
+    color_px() %>%
     imager::clean(px = ., x = 10, boundary = T)
-  
+
   r2 <- r2 %>%
     imager::crop.bbox(r2bbox)
-  
+
   if (prod(dim(r1)[1:2]) < prod(dim(r2)[1:2])) {
     return(r1)
   } else {
@@ -106,13 +108,13 @@ median_cc <- function(image, px) {
 }
 
 fix_border <- function(imx) {
-  bw_im <- (!color_px(imx, del = .01)) #%>%
-    # imager::clean(x = 2, boundary = T)
+  bw_im <- (!color_px(imx, del = .01)) # %>%
+  # imager::clean(x = 2, boundary = T)
   if (mean(bw_im) > 0) {
-    imret <- imx #%>%
-      # imager::imsplit(axis = 'c') %>%
-      # imager::map_il(median_cc, px = bw_im) %>%
-      # imager::imappend(axis = 'c')
+    imret <- imx # %>%
+    # imager::imsplit(axis = 'c') %>%
+    # imager::map_il(median_cc, px = bw_im) %>%
+    # imager::imappend(axis = 'c')
   } else {
     imret <- imx
   }
@@ -124,15 +126,10 @@ fix_img <- function(im, poly, invert, ret, angle) {
 
   try({
     x <- mask_polygon(img = im, poly = poly, ret = ret, invert = invert, plotres = F) %>%
-      fix_rotate(angle = angle, boundary = 0) %>%  
+      fix_rotate(angle = angle, boundary = 0) %>%
       imager::crop.borders(nPix = 1) %>%
       fix_border() %>%
       imager::autocrop()
-
-#     # Plot approx every 10th image
-#     if (runif(1) < .1) {
-#       plot(x)
-#     }
 
     x
   })
@@ -165,17 +162,114 @@ img_split_resize <- function(im, xsize = 256, ysize = 256, interpolation_type = 
   enough_to_resize_idx <- sapply(splitimgs, function(x) prod(dim(x)[1:2] >= c(xsize / 10, ysize / 10)) == 1)
   color_variation_idx <- sapply(resizeimgs, function(x) length(unique(x)) >= 50)
   nonwhite_idx <- sapply(resizeimgs, function(x) {
-    sum(imager::grayscale(x) != 1) > (.75*256*256)
+    sum(imager::grayscale(x) != 1) > (.75 * 256 * 256)
   })
 
   resizeimgs[enough_to_resize_idx & color_variation_idx & nonwhite_idx]
 }
 
+img_contrast_fix <- function(im, contrast_level = 64) {
+  cor_factor <- 259 * (contrast_level + 255) / (255 * (259 - contrast_level))
+  adj <- ifelse(max(im) <= 1, .5, 128)
 
-fix_save_imgs <- function(mydf) { # mydf is a chunk of dfunion
-  img_fixed <- data_frame(
+  res <- im %>%
+    imsplit("c") %>%
+    purrr::map(~(cor_factor * (. - adj) + adj)) %>%
+    imappend("c")
+
+  res[res < 0] <- 0
+  res[res > 1] <- 1
+
+  res
+}
+
+im_hist_normalize <- function(im) {
+  res <- im %>%
+    imsplit("c") %>%
+    purrr::map(~(. - min(.)) / (max(.) - min(.))) %>%
+    imappend("c") %T>%
+    plot()
+}
+
+im_gamma_cor <- function(im, gamma = 2.2) {
+  gcor <- 1 / gamma
+  im %>%
+    imsplit("c") %>%
+    purrr::map(~.^gcor) %>%
+    imappend("c")
+}
+
+equalize <- function(x) {
+  # Stolen from EBImage and modified
+  if (max(x) > 1) { # Assume LAB
+    range <- c(0, 100)
+  } else {
+    range <- c(0, 1)
+  }
+
+  levels <- 1024
+  r <- range(x)
+  if (r[1L] == r[2L]) {
+    warning("Image histogram is single-valued and cannot be equalized.")
+    x
+  } else {
+    if (!is.numeric(range) || length(range) != 2L) {
+      stop("'range' must be a numeric vector of length 2.")
+    }
+
+    levels <- as.integer(levels)
+    if (is.na(levels) || levels < 1L) {
+      stop("Levels must be at least equal 1.")
+    }
+    breaks <- seq(range[1L], range[2L], length.out = levels + 1L)
+    d <- dim(x)
+    n <- d[1L] * d[2L]
+
+    # equalize each frame separately
+    .equalize <- function(y) {
+      h <- hist.default(y, breaks = breaks, plot = FALSE)
+      cdf <- cumsum(h$counts)
+      cdf_min <- min(cdf[cdf > 0])
+
+      equalized <- ((cdf - cdf_min) / (prod(dim(y)) - cdf_min) * (range[2L] - range[1L])) + range[1L]
+      bins <- round((y - range[1L]) / (range[2L] - range[1L]) * (levels - 1L)) + 1L
+
+      res <- equalized[bins]
+    }
+
+    ld <- length(d[d != 1])
+    res <- if (ld > 2L) {
+      apply(x, 3L:ld, .equalize)
+    } else {
+      .equalize(x)
+    }
+
+    imager::as.cimg(res, dim = d)
+  }
+}
+
+im_equalize <- function(im, plot_res = F) {
+  tmp <- im %>%
+    imager::RGBtoHSL() %>%
+    imager::imsplit("c")
+
+  total_var <- purrr::map_dbl(imager::imsplit(im, "c"), var) %>% sum()
+  if (var(tmp[[3]]) > 0.0001 & total_var > 0.001) {
+    tmp[[3]] <- equalize(tmp[[3]])
+  }
+  res <- tmp %>%
+    imager::imappend("c") %>%
+    imager::HSLtoRGB()
+
+  if (plot_res) {
+    plot(imlist(im, res), layout = "row")
+  }
+  res
+}
+
+fix_save_imgs <- function(mydf, correct = c("histogram")) { # mydf is a chunk of dfunion
+  img_fixed <- tibble(
     im = mydf$image,
-    # poly = sf::st_as_sfc(mydf$poly_sf),
     poly = mydf$mbr,
     invert = T,
     ret = "image",
@@ -183,50 +277,29 @@ fix_save_imgs <- function(mydf) { # mydf is a chunk of dfunion
   ) %>%
     future_pmap(fix_img, .progress = T)
 
-  idx <- mydf$toobig != ""
-  rightsize <- map(
-    img_fixed[!idx], 
-    ~imager::resize(im = ., size_x = 256, size_y = 256, interpolation_type = 1))
-  
-  future_map2(rightsize, mydf$filename[!idx], ~imager::save.image(.x, .y, quality = 1))
-  
-  if (sum(idx) > 0) {
-    future_map2(img_fixed[idx], img_fixed, ~imager::save.image(.x, .y, quality = 1))
-    # 
-    # # Handle images that need to be sliced
-    # toobigimgs <- map(img_fixed[idx], img_split_resize)
-    # toobigdf <- filter(mydf, idx)
-    # 
-    # # Unnest data frame
-    # toobigdf <- map2_df(toobigimgs, 1:length(toobigimgs), ~toobigdf[.y, ] %>%
-    #   mutate(id2 = .y) %>%
-    #   mutate(subidx = list(1:length(.x)))) %>%
-    #   unnest(subidx) %>%
-    #   mutate(idx = row_number()) %>%
-    #   arrange(idx) %>%
-    #   mutate(
-    #     filename = str_replace(
-    #       filename,
-    #       "(.*?)-(\\d{1,})-(.*)",
-    #       sprintf("\\1-\\2.%s-\\3", subidx)
-    #     ) %>%
-    #       str_replace("toslice/", ""))
-    # 
-    # # Unnest images
-    # toobigimglist <- toobigimgs %>%
-    #   unlist(recursive = F) %>%
-    #   imager:::as.imlist()
-    # 
-    # 
-    # future_map2(toobigimglist, toobigdf$filename, ~imager::save.image(.x, .y, quality = 1))
-
-    # mydf2 <- bind_rows(mydf[!idx, ], toobigdf)
-    mydf2 <- mydf
-    # mydf2$img <- c(rightsize, toobigimglist) %>% imager:::as.imlist()
-    mydf2
-  } else {
-    mydf2 <- mydf
-    # mydf2$img <- rightsize %>% imager:::as.imlist()
-    mydf2
+  err <- map_lgl(img_fixed, ~"try-error" %in% class(.))
+  if (sum(err) > 0) {
+    errors <- mydf[err, ]
+    warning(sprintf("Could not generate %d images", sum(err)))
   }
+
+  if ("contrast" %in% correct) {
+    img_fixed[!err] <- img_fixed[!err] %>%
+      future_map(img_contrast_fix, .progress = T)
+  }
+
+  if ("histogram" %in% correct) {
+    img_fixed[!err] <- img_fixed[!err] %>%
+      future_map(im_equalize, .progress = T)
+  }
+
+  rightsize <- future_map(
+    img_fixed[!err],
+    ~imager::resize(im = ., size_x = 256, size_y = 256, interpolation_type = 1)
+  )
+
+  future_map2(rightsize, mydf$filename[!err], ~imager::save.image(.x, .y, quality = 1))
+
+  mydf$error <- err
+  mydf
 }

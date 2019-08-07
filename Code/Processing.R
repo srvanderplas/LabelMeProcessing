@@ -4,6 +4,7 @@ library(XML)
 library(sf)
 library(purrr)
 library(magrittr)
+library(imager)
 library(tidyverse)
 
 library(furrr)
@@ -26,7 +27,11 @@ if (!exists("annot_dir")) {
 }
 
 if (!exists("process_dir")) {
-  process_dir <- file.path(getwd(), "OneHotContext")
+  format(lubridate::now(), "%Y%m%d-%H%M%S")
+}
+
+if (!exists("contrast_correct")) {
+  contrast_correct <- F
 }
 ################################################################################
 
@@ -36,13 +41,15 @@ source(file.path(code_dir, "ParseAnnotations.R"))
 files <- list.files(annot_dir, "*.xml", full.names = T)
 images <- file.path(image_dir, str_replace(basename(files), "xml", "jpg"))
 
-df <- data_frame(
+
+# Set up data frame of files
+df <- tibble(
   id = 1:length(files),
   file = files,
   image = images
 ) %>%
   mutate(
-    xml = map(file, annotationObj_extract),
+    xml = map(file, ~try(annotationObj_extract(.))),
     objs = map_int(xml, ~length(unlist(.)))
   ) %>%
   filter(objs > 0) %>%
@@ -54,6 +61,7 @@ gc()
 plan(multicore, workers = 40)
 
 
+# Add labels to polygons
 df <- df %>%
   mutate(
     fullannot = future_map(annot, ~try(polygon_addfulllabels(.)))
@@ -85,21 +93,29 @@ dfunion <- dplyr::select(df_work, id, image, fullannot) %>%
   filter(!str_detect(name, "exclude")) %>%
   mutate(geost = future_map(poly_sf, geo_stats)) %>%
   unnest(geost) %>%
-  filter(area > 64^2, area / diagdist > 64 * .5) %>%
+  filter(area > 96^2) %>%
+  filter(area < 512*512) %>%
   ungroup() %>%
   group_by(image, name) %>%
   select(id, image, name, attributes, objID = id1, poly_sf, area, diagdist,
          angle, angle_adj, mbr) %>%
-  mutate(toobig = ifelse(area > 680^2, "toslice/", ""),
-         mbr = sf::st_polygon(mbr)) %>%
+  mutate(mbr = sf::st_polygon(mbr)) %>%
+  ungroup() %>%
+  mutate(name = str_remove(name, "^_") %>% str_remove("_$")) %>%
   group_by(image, name) %>%
-  mutate(filename = sprintf("%s/images/%s%s-%d-%s", process_dir, toobig, name,
+  mutate(filename = sprintf("%s/images/%s-%d-%s", process_dir, name,
                             row_number(), basename(image))) %>%
   ungroup()
 
+# Don't save things that are already there
+existing_files <- list.files(process_dir, full.names = T, recursive = T)
+existing_files <- existing_files[str_detect(existing_files, "images/")]
+
+dfunion_unsaved <- dfunion %>%
+  filter(!filename %in% existing_files)
 
 # Create chunks of data frame
-dfsplit <- split(dfunion, floor(dfunion$id / 10))
+dfsplit <- split(dfunion_unsaved, floor(dfunion_unsaved$id / 10))
 tmpsplit <- map(dfsplit, ~try(fix_save_imgs(.)), .progress = T)
 
 save(tmpsplit, dfunion, df,
