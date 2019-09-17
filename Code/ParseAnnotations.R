@@ -351,7 +351,7 @@ polygon_addfulllabels <- function(annot_df) {
 
   if (length(tmpintersections) > 0) {
     tmpintersectdata <- tmpintersectdata %>%
-      as_() %>%
+      as_tibble() %>%
       mutate_at(vars(starts_with("ID")), ~str_replace(., "ID", "")) %>%
       mutate(
         area_int = raster::area(tmpintersections),
